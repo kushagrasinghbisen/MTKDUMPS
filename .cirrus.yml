@@ -1,1 +1,50 @@
+env:
+  # Telegram
+  TG_CHAT: "@MTKDUMPS"
+  TG_TOKEN: 
+  
+  # Gitlab
+  PUSH_TO_GITLAB: true
+  GITLAB_GROUP: MTKDUMPS
+  GITLAB_TOKEN: 
+  GITLAB_INSTANCE: gitgud.io
+  
+  # Private SSH Key
+  PRIV_SSH_KEY: 
 
+task:
+  name: "Firmware Dump by MTKDUMPS"
+  only_if: $CIRRUS_REPO_OWNER == 'kushagrasinghbisen'
+  skip: $CIRRUS_BRANCH == 'main'
+  auto_cancellation: $CIRRUS_BRANCH == 'autocancel'
+  timeout_in: 120m
+  container:
+      image: ghcr.io/sushrut1101/docker:arch
+      cpu: 4
+      memory: 16G
+
+  Clone_script:
+      - git clone --depth=1 --single-branch https://github.com/DumprX/DumprX.git
+  
+  Set-SSH-Keys_script:
+      - mkdir -p ~/.ssh
+      - ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+      - ssh-keyscan -t rsa gitlab.com >> ~/.ssh/known_hosts
+      - ssh-keyscan -t rsa $GITLAB_INSTANCE >> ~/.ssh/known_hosts
+      - echo "$PRIV_SSH_KEY" > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+
+  Setup_script:
+      - git config --global user.name "kushagrasinghbisen"
+      - git config --global user.email "kushagrasinghbisen@gmail.com"
+      - cd DumprX
+      - echo "$GITLAB_TOKEN" > .gitlab_token
+      - echo "$GITLAB_GROUP" > .gitlab_group
+      - echo "$TG_CHAT" > .tg_chat
+      - echo "$TG_TOKEN" > .tg_token
+      - echo "$GITLAB_INSTANCE" > .gitlab_instance
+      - sudo bash setup.sh
+
+  DumprX_script:
+      - cd DumprX || echo "Already in the Directory"
+      - ./dumper.sh $(< ${CIRRUS_WORKING_DIR}/ROM_URL.txt)
